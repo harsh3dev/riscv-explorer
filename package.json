@@ -1,0 +1,10 @@
+{
+  "name": "riscv-explorer",
+  "version": "1.0.0",
+  "description": "RISC-V Instruction Set Explorer",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "tier1": "node index.js"
+  }
+}
