@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js --all",
     "tier1": "node index.js --tier1",
-    "tier2": "node index.js --tier2"
+    "tier2": "node index.js --tier2",
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=14"
