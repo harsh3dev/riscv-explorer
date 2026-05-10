@@ -1,0 +1,253 @@
+const fs = require('fs');
+const path = require('path');
+const { stripPrefix } = require('./normalize');
+
+function buildGraph(instrDict) {
+  const nodeInstrCounts = new Map(); // normalized → Set<mnemonic>
+  const edgeWeights = new Map();     // "extA|extB" → shared instruction count
+
+  for (const [mnemonic, instrData] of Object.entries(instrDict)) {
+    const normalizedTags = [...new Set((instrData.extension || []).map(stripPrefix))];
+
+    for (const tag of normalizedTags) {
+      if (!nodeInstrCounts.has(tag)) nodeInstrCounts.set(tag, new Set());
+      nodeInstrCounts.get(tag).add(mnemonic);
+    }
+
+    for (let i = 0; i < normalizedTags.length; i++) {
+      for (let j = i + 1; j < normalizedTags.length; j++) {
+        const [a, b] = [normalizedTags[i], normalizedTags[j]].sort();
+        const key = `${a}|${b}`;
+        edgeWeights.set(key, (edgeWeights.get(key) || 0) + 1);
+      }
+    }
+  }
+
+  // Only nodes that appear in at least one edge
+  const connectedNodes = new Set();
+  for (const key of edgeWeights.keys()) {
+    key.split('|').forEach(n => connectedNodes.add(n));
+  }
+
+  const nodes = [...connectedNodes].map(id => ({
+    id,
+    instrCount: nodeInstrCounts.get(id)?.size ?? 0,
+  }));
+
+  const edges = [...edgeWeights.entries()].map(([key, weight]) => {
+    const [source, target] = key.split('|');
+    return { source, target, weight };
+  });
+
+  return { nodes, edges };
+}
+
+function printTextGraph(graph, emit = console.log) {
+  const { nodes, edges } = graph;
+
+  emit('\n=== Tier 3: Extension Sharing Graph ===\n');
+  emit(`  Nodes (extensions with shared instructions): ${nodes.length}`);
+  emit(`  Edges (sharing relationships):               ${edges.length}`);
+  emit('');
+
+  // Build per-node adjacency list sorted by weight desc
+  const adjacency = new Map(nodes.map(n => [n.id, []]));
+  for (const { source, target, weight } of edges) {
+    adjacency.get(source).push({ peer: target, weight });
+    adjacency.get(target).push({ peer: source, weight });
+  }
+
+  const sortedNodes = [...nodes].sort((a, b) => b.instrCount - a.instrCount);
+
+  emit('Adjacency list (sorted by instruction count, peers by shared count):\n');
+  for (const { id, instrCount } of sortedNodes) {
+    const peers = adjacency.get(id).sort((a, b) => b.weight - a.weight);
+    const peerStr = peers.map(p => `${p.peer}(${p.weight})`).join(', ');
+    emit(`  ${id.padEnd(20)} [${instrCount} instrs] -> ${peerStr}`);
+  }
+}
+
+function extensionColor(id) {
+  if (/^zv|^v$/.test(id))    return '#4e9af1'; // vector
+  if (/^zk/.test(id))         return '#e05c5c'; // crypto
+  if (/^zb/.test(id))         return '#f0a500'; // bitmanip
+  if (/^zi/.test(id))         return '#aaaaaa'; // misc Zi
+  if (/^[aA]$/.test(id))      return '#e67e22'; // atomics
+  if (/^[mM]$/.test(id))      return '#9b59b6'; // multiply
+  if (/^[dDfFqQ]/.test(id))   return '#27ae60'; // float
+  if (/^[cC]$/.test(id))      return '#16a085'; // compressed
+  if (/^z/.test(id))           return '#c0b8e8'; // other Z
+  return '#95a5a6';
+}
+
+function generateHtmlGraph(graph) {
+  const { nodes, edges } = graph;
+  const graphJson = JSON.stringify({ nodes, edges });
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>RISC-V Extension Sharing Graph</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0f1117; color: #e0e0e0; font-family: 'Segoe UI', monospace; }
+
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      background: #1a1d27; border-bottom: 1px solid #2e3348;
+      padding: 10px 20px; display: flex; align-items: center; gap: 20px;
+    }
+    #header h1 { font-size: 15px; font-weight: 600; color: #c8d0f0; }
+    #stats { font-size: 12px; color: #7a85a3; }
+
+    #legend {
+      position: fixed; bottom: 16px; left: 16px; z-index: 10;
+      background: #1a1d27cc; border: 1px solid #2e3348;
+      border-radius: 8px; padding: 10px 14px; font-size: 11px;
+    }
+    #legend h3 { font-size: 11px; color: #7a85a3; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    #tooltip {
+      position: fixed; display: none; pointer-events: none;
+      background: #1a1d27ee; border: 1px solid #2e3348; border-radius: 6px;
+      padding: 8px 12px; font-size: 12px; color: #c8d0f0; z-index: 20;
+      max-width: 240px; line-height: 1.6;
+    }
+    #tooltip b { color: #fff; }
+
+    svg { display: block; width: 100vw; height: 100vh; }
+    .link { stroke-opacity: 0.45; }
+    .node circle { cursor: pointer; stroke-width: 1.5; }
+    .node circle:hover { stroke-width: 3; stroke: #fff; }
+    .node text {
+      pointer-events: none; font-size: 10px; fill: #c8d0f0;
+      text-shadow: 0 0 4px #0f1117, 0 0 4px #0f1117;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>RISC-V Extension Sharing Graph</h1>
+    <span id="stats"></span>
+  </div>
+  <div id="legend">
+    <h3>Extension family</h3>
+    <div class="legend-row"><div class="legend-dot" style="background:#4e9af1"></div> Vector (V / Zv*)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#e05c5c"></div> Crypto (Zk*)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#f0a500"></div> Bit-manip (Zb*)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#27ae60"></div> Float (D / F / Q)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#16a085"></div> Compressed (C)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#e67e22"></div> Atomics (A)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#9b59b6"></div> Multiply (M)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#aaaaaa"></div> Misc (Zi*)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:#c0b8e8"></div> Other Z</div>
+  </div>
+  <div id="tooltip"></div>
+  <svg id="graph"></svg>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const rawData = ${graphJson};
+
+    const colorMap = ${JSON.stringify(Object.fromEntries(nodes.map(n => [n.id, extensionColor(n.id)])))};
+
+    const W = window.innerWidth, H = window.innerHeight;
+    const maxInstrs = Math.max(...rawData.nodes.map(n => n.instrCount));
+    const maxWeight = Math.max(...rawData.edges.map(e => e.weight));
+
+    const nodeRadius = d => Math.max(5, Math.sqrt(d.instrCount / maxInstrs) * 38);
+    const edgeWidth  = d => Math.max(0.8, (d.weight / maxWeight) * 8);
+
+    const svg = d3.select('#graph')
+      .attr('viewBox', [0, 0, W, H]);
+
+    const container = svg.append('g');
+
+    svg.call(d3.zoom()
+      .scaleExtent([0.2, 8])
+      .on('zoom', e => container.attr('transform', e.transform)));
+
+    const link = container.append('g')
+      .selectAll('line')
+      .data(rawData.edges)
+      .join('line')
+        .attr('class', 'link')
+        .attr('stroke', '#3a4060')
+        .attr('stroke-width', edgeWidth);
+
+    const node = container.append('g')
+      .selectAll('g')
+      .data(rawData.nodes)
+      .join('g')
+        .attr('class', 'node')
+        .call(d3.drag()
+          .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+          .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+          .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }));
+
+    node.append('circle')
+      .attr('r', nodeRadius)
+      .attr('fill', d => colorMap[d.id] || '#95a5a6')
+      .attr('stroke', d => d3.color(colorMap[d.id] || '#95a5a6').brighter(0.8));
+
+    node.append('text')
+      .attr('dy', d => nodeRadius(d) + 11)
+      .attr('text-anchor', 'middle')
+      .text(d => d.id);
+
+    // Build adjacency map for tooltip
+    const adjMap = {};
+    rawData.edges.forEach(e => {
+      (adjMap[e.source] = adjMap[e.source] || []).push({ peer: e.target, weight: e.weight });
+      (adjMap[e.target] = adjMap[e.target] || []).push({ peer: e.source, weight: e.weight });
+    });
+    Object.values(adjMap).forEach(arr => arr.sort((a, b) => b.weight - a.weight));
+
+    const tooltip = document.getElementById('tooltip');
+    node.on('mousemove', (event, d) => {
+      const peers = (adjMap[d.id] || []).slice(0, 6)
+        .map(p => \`\${p.peer} (\${p.weight})\`).join('<br>');
+      tooltip.innerHTML =
+        \`<b>\${d.id}</b><br>\` +
+        \`Instructions: \${d.instrCount}<br>\` +
+        \`Shares with \${(adjMap[d.id] || []).length} extension(s):<br>\${peers}\` +
+        ((adjMap[d.id] || []).length > 6 ? '<br>...' : '');
+      tooltip.style.display = 'block';
+      tooltip.style.left = (event.clientX + 14) + 'px';
+      tooltip.style.top  = (event.clientY - 10) + 'px';
+    }).on('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    document.getElementById('stats').textContent =
+      \`\${rawData.nodes.length} extensions · \${rawData.edges.length} sharing relationships\`;
+
+    const sim = d3.forceSimulation(rawData.nodes)
+      .force('link',      d3.forceLink(rawData.edges).id(d => d.id).distance(d => 120 / Math.sqrt(d.weight)))
+      .force('charge',    d3.forceManyBody().strength(d => -120 - nodeRadius(d) * 4))
+      .force('center',    d3.forceCenter(W / 2, H / 2))
+      .force('collision', d3.forceCollide().radius(d => nodeRadius(d) + 6))
+      .on('tick', () => {
+        link
+          .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+          .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+        node.attr('transform', d => \`translate(\${d.x},\${d.y})\`);
+      });
+  </script>
+</body>
+</html>`;
+}
+
+function runGraph(instrDict, htmlOutputPath, emit = console.log) {
+  const graph = buildGraph(instrDict);
+  printTextGraph(graph, emit);
+
+  const html = generateHtmlGraph(graph);
+  fs.writeFileSync(htmlOutputPath, html, 'utf8');
+  emit(`\nGraph saved to ${htmlOutputPath}`);
+
+  return graph;
+}
+
+module.exports = { buildGraph, printTextGraph, generateHtmlGraph, runGraph };
