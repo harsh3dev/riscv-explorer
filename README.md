@@ -14,6 +14,8 @@ node index.js
 
 Output is printed to the terminal and also written to `output.txt` in the same folder, overwriting it on each run.
 
+<img width="1728" height="966" alt="image" src="https://github.com/user-attachments/assets/93faf9ba-0fdb-41be-a973-28ff4988f01d" />
+
 ---
 
 ## Project structure
