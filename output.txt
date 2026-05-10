@@ -198,3 +198,178 @@ Found 73 instructions belonging to more than one extension:
   VSM4K_VI             (2) -> rv_zvksed, rv_zvks
   VSM4R_VS             (2) -> rv_zvksed, rv_zvks
   VSM4R_VV             (2) -> rv_zvksed, rv_zvks
+Normalized JSON extensions: 85 unique names
+Manual extensions found:    96 [[ext:...]] anchors, 33 priv anchors
+
+=== Tier 2: Cross-Reference Results ===
+
+  Matched:      61
+  JSON only:    20
+  Manual only:  76
+  Synthetic*:   4  (* base ISA tags, excluded from mismatch)
+
+Extensions in instr_dict.json but NOT found in the ISA manual:
+
+  h                         (raw: rv_h, rv64_h)
+  sdext                     (raw: rv_sdext)
+  smrnmi                    (raw: rv_smrnmi)
+  ssctr                     (raw: rv_ssctr)
+  svinval_h                 (raw: rv_svinval_h)
+  zbp                       (raw: rv64_zbp, rv_zbp)
+  zibi                      (raw: rv_zibi)
+  zicbo                     (raw: rv_zicbo)
+  zvabd                     (raw: rv_zvabd)
+  zvfbdot32f                (raw: rv_zvfbdot32f)
+  zvfofp4min                (raw: rv_zvfofp4min)
+  zvfofp8min                (raw: rv_zvfofp8min)
+  zvfqbdot8f                (raw: rv_zvfqbdot8f)
+  zvfqldot8f                (raw: rv_zvfqldot8f)
+  zvfwbdot16bf              (raw: rv_zvfwbdot16bf)
+  zvfwldot16bf              (raw: rv_zvfwldot16bf)
+  zvqbdot8i                 (raw: rv_zvqbdot8i)
+  zvqdotq                   (raw: rv_zvqdotq)
+  zvqldot8i                 (raw: rv_zvqldot8i)
+  zvzip                     (raw: rv_zvzip)
+
+Extensions in the ISA manual but NOT present in instr_dict.json:
+
+  b                         [ext]
+  sh                        [priv]
+  sha                       [priv]
+  shcounterenw              [priv]
+  shgatpa                   [priv]
+  shtvala                   [priv]
+  shvsatpa                  [priv]
+  shvstvala                 [priv]
+  shvstvecd                 [priv]
+  sm                        [priv]
+  smcdeleg                  [priv]
+  smcntrpmf                 [priv]
+  smctr                     [priv]
+  smdbltrp                  [priv]
+  smepmp                    [priv]
+  smstateen                 [priv]
+  ss                        [priv]
+  ssccptr                   [priv]
+  sscofpmf                  [priv]
+  sscounterenw              [priv]
+  ssdbltrp                  [priv]
+  ssqosid                   [priv]
+  ssstrict                  [priv]
+  sstc                      [priv]
+  sstvala                   [priv]
+  sstvecd                   [priv]
+  ssu64xl                   [priv]
+  sv                        [priv]
+  svadu                     [priv]
+  svnapot                   [priv]
+  svpbmt                    [priv]
+  svrsw60t59b               [priv]
+  svvptc                    [priv]
+  za128rs                   [ext]
+  za64rs                    [ext]
+  zaamo                     [ext]
+  zalrsc                    [ext]
+  zama16b                   [ext]
+  zca                       [ext]
+  zcd                       [ext]
+  zce                       [ext]
+  zcf                       [ext]
+  zclsd                     [ext]
+  zdinx                     [ext]
+  zfinx                     [ext]
+  zic64b                    [ext]
+  zicbom                    [ext]
+  zicbop                    [ext]
+  zicboz                    [ext]
+  ziccamoa                  [ext]
+  ziccamoc                  [ext]
+  ziccif                    [ext]
+  zicclsm                   [ext]
+  ziccrse                   [ext]
+  zicfilp                   [ext]
+  zicntr                    [ext]
+  zihintntl                 [ext]
+  zihintpause               [ext]
+  zihpm                     [ext]
+  zilsd                     [ext]
+  zkt                       [ext]
+  zmmul                     [ext]
+  ztso                      [ext]
+  zve32f                    [ext]
+  zve32x                    [ext]
+  zve64d                    [ext]
+  zve64f                    [ext]
+  zve64x                    [ext]
+  zvfh                      [ext]
+  zvfhmin                   [ext]
+  zvkb                      [ext]
+  zvknc                     [ext]
+  zvkng                     [ext]
+  zvksc                     [ext]
+  zvksg                     [ext]
+  zvkt                      [ext]
+
+Matched extensions (with how they were matched):
+
+  a                         direct
+  c                         direct
+  c_d                       compound (c + d)
+  c_f                       compound (c + f)
+  d                         direct
+  d_zfa                     compound (d + zfa)
+  d_zfhmin                  compound (d + zfhmin)
+  f                         direct
+  f_zfa                     compound (f + zfa)
+  m                         direct
+  q                         direct
+  q_zfa                     compound (q + zfa)
+  q_zfhmin                  compound (q + zfhmin)
+  svinval                   direct
+  v                         direct
+  zabha                     direct
+  zabha_zacas               compound (zabha + zacas)
+  zacas                     direct
+  zalasr                    direct
+  zawrs                     direct
+  zba                       direct
+  zbb                       direct
+  zbc                       direct
+  zbkb                      direct
+  zbkc                      direct
+  zbkx                      direct
+  zbs                       direct
+  zcb                       direct
+  zcmop                     direct
+  zcmp                      direct
+  zcmt                      direct
+  zfbfmin                   direct
+  zfh                       direct
+  zfh_zfa                   compound (zfh + zfa)
+  zfhmin                    direct
+  zicfiss                   direct
+  zicond                    direct
+  zicsr                     direct
+  zifencei                  direct
+  zimop                     direct
+  zk                        direct
+  zkn                       direct
+  zknd                      direct
+  zkne                      direct
+  zknh                      direct
+  zkr                       direct
+  zks                       direct
+  zksed                     direct
+  zksh                      direct
+  zvbb                      direct
+  zvbc                      direct
+  zvfbfmin                  direct
+  zvfbfwma                  direct
+  zvkg                      direct
+  zvkn                      direct
+  zvkned                    direct
+  zvknha                    direct
+  zvknhb                    direct
+  zvks                      direct
+  zvksed                    direct
+  zvksh                     direct

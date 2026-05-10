@@ -1,10 +1,14 @@
 {
   "name": "riscv-explorer",
   "version": "1.0.0",
-  "description": "RISC-V Instruction Set Explorer",
+  "description": "RISC-V Instruction Set Explorer — parses instr_dict.json and cross-references against the ISA manual",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "tier1": "node index.js"
+    "start": "node index.js --all",
+    "tier1": "node index.js --tier1",
+    "tier2": "node index.js --tier2"
+  },
+  "engines": {
+    "node": ">=14"
   }
 }
